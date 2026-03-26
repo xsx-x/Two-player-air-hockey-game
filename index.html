@@ -104,13 +104,14 @@
         
         .btn {
             background: linear-gradient(45deg, #f1c40f, #e67e22);
-            color: #000; font-family: inherit; font-size: 28px; font-weight: 900;
-            padding: 15px 50px; border: none; border-radius: 50px;
+            color: #000; font-family: inherit; font-size: 24px; font-weight: 900;
+            padding: 15px 30px; border: none; border-radius: 50px;
             cursor: pointer; transition: all 0.2s;
-            animation: pulseGlow 2s infinite; text-transform: uppercase;
+            margin: 10px; text-transform: uppercase;
         }
-        .btn:hover { transform: scale(1.05) translateY(-5px); }
+        .btn:hover { transform: scale(1.05) translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
         .btn:active { transform: scale(0.95); }
+        .btn-glow { animation: pulseGlow 2s infinite; }
 
         .hidden { opacity: 0; pointer-events: none; }
 
@@ -175,7 +176,10 @@
                 <input type="text" id="p2-name-input" placeholder="שחקן 2 (שמאל)" maxlength="12">
                 <input type="text" id="p1-name-input" placeholder="שחקן 1 (ימין)" maxlength="12">
             </div>
-            <button class="btn" onclick="startGame()">התחל משחק</button>
+            <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 15px;">
+                <button class="btn btn-glow" onclick="startGame('PVE')">שחק נגד מחשב</button>
+                <button class="btn" onclick="startGame('PVP')">שחק נגד חבר</button>
+            </div>
         </div>
     </div>
 
@@ -216,17 +220,18 @@
         let confetti = [];
         let ballTrail = [];
 
-        // אובייקטים במשחק (הגדלתי מסות ומהירויות לתחושה יותר דינמית)
+        // אובייקטים במשחק (מהירות מוגברת משמעותית לאקשן חזק יותר!)
         const ball = { x: 0, y: 0, vx: 0, vy: 0, radius: 18, mass: 1, colorBase: '#ffffff', colorLight: '#e0e0e0', bounce: 0.9 };
-        const p1 = { x: 0, y: 0, vx: 0, vy: 0, radius: 35, mass: 6, colorBase: '#005c8a', colorLight: '#00d2ff', speed: 1.2, maxSpeed: 10 }; // כחול ניאון (ימין)
-        const p2 = { x: 0, y: 0, vx: 0, vy: 0, radius: 35, mass: 6, colorBase: '#8a002b', colorLight: '#ff3366', speed: 1.2, maxSpeed: 10 }; // ורוד/אדום ניאון (שמאל)
+        const p1 = { x: 0, y: 0, vx: 0, vy: 0, radius: 35, mass: 6, colorBase: '#005c8a', colorLight: '#00d2ff', speed: 1.8, maxSpeed: 15 }; // כחול ניאון (ימין)
+        const p2 = { x: 0, y: 0, vx: 0, vy: 0, radius: 35, mass: 6, colorBase: '#8a002b', colorLight: '#ff3366', speed: 1.8, maxSpeed: 15 }; // ורוד/אדום ניאון (שמאל)
 
         const keys = {};
 
-        // שמות שחקנים וסאונד
+        // שמות שחקנים, סאונד ומצב משחק
         let p1Name = "שחקן 1";
         let p2Name = "שחקן 2";
         let audioCtx;
+        let gameMode = 'PVP'; // 'PVP' (שחקן נגד שחקן) או 'PVE' (שחקן נגד מחשב)
 
         function playSound(type) {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -374,7 +379,7 @@
                 obj2.vy += p * obj1.mass * ny * 0.9;
 
                 // אפקט ויזואלי להתנגשות חזקה
-                if (Math.abs(p) > 2) {
+                if (Math.abs(p) > 2.5) {
                     createSparks(obj1.x + nx * obj1.radius, obj1.y + ny * obj1.radius, '#f1c40f');
                     playSound('hit');
                 }
@@ -384,15 +389,22 @@
         function handleInput() {
             if (gameState !== 'PLAYING') return;
 
+            // שחקן 1 (ימין) תמיד נשלט על ידי החצים
             if (keys['ArrowUp']) p1.vy -= p1.speed;
             if (keys['ArrowDown']) p1.vy += p1.speed;
             if (keys['ArrowLeft']) p1.vx -= p1.speed;
             if (keys['ArrowRight']) p1.vx += p1.speed;
 
-            if (keys['KeyW']) p2.vy -= p2.speed;
-            if (keys['KeyS']) p2.vy += p2.speed;
-            if (keys['KeyA']) p2.vx -= p2.speed;
-            if (keys['KeyD']) p2.vx += p2.speed;
+            // שחקן 2 נשלט על ידי המקלדת רק אם משחקים נגד חבר
+            if (gameMode === 'PVP') {
+                if (keys['KeyW']) p2.vy -= p2.speed;
+                if (keys['KeyS']) p2.vy += p2.speed;
+                if (keys['KeyA']) p2.vx -= p2.speed;
+                if (keys['KeyD']) p2.vx += p2.speed;
+            } else {
+                // קריאה לבינה המלאכותית אם משחקים נגד מחשב
+                updateAI();
+            }
 
             const limitSpeed = (obj) => {
                 const speed = Math.sqrt(obj.vx * obj.vx + obj.vy * obj.vy);
@@ -402,6 +414,41 @@
                 }
             };
             limitSpeed(p1); limitSpeed(p2);
+        }
+
+        function updateAI() {
+            // בינה מלאכותית (AI) לשחקן האדום
+            let targetX = width * 0.1; // מיקום הגנה ברירת מחדל
+            let targetY = height / 2;
+
+            if (ball.x < width / 2) {
+                // הכדור בחצי של המחשב - הוא יוצא להתקפה!
+                targetX = ball.x - 20; // מנסה להיכנס מאחורי הכדור כדי לדחוף אותו קדימה
+                targetY = ball.y;
+                
+                // מונע מהמחשב להיתקע בקיר השמאלי
+                if (targetX < p2.radius) targetX = p2.radius;
+            } else {
+                // הכדור אצל השחקן - המחשב חוזר להגן
+                targetX = width * 0.15;
+                targetY = ball.y; // עוקב אחרי גובה הכדור כדי לחסום בעיטות
+                
+                // מגביל את המחשב לאזור השער כדי שלא יברח רחוק מדי
+                const goalTop = height / 2 - 120;
+                const goalBottom = height / 2 + 120;
+                targetY = Math.max(goalTop, Math.min(goalBottom, targetY));
+            }
+
+            // תנועה חלקה לכיוון המטרה
+            const dx = targetX - p2.x;
+            const dy = targetY - p2.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > 5) {
+                const aiAccel = p2.speed * 0.7; // המחשב מאיץ קצת יותר לאט מהשחקן כדי שיהיה הוגן
+                p2.vx += (dx / dist) * aiAccel;
+                p2.vy += (dy / dist) * aiAccel;
+            }
         }
 
         function updatePhysics() {
@@ -466,16 +513,20 @@
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
-        function startGame() {
+        function startGame(mode = 'PVP') {
+            gameMode = mode;
+            
             // אתחול סאונד וקריאה לשריקת הפתיחה
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             playSound('whistle');
 
-            // שמירת והצגת שמות השחקנים מהשדות
+            // שמירת והצגת שמות השחקנים
             const p1Input = document.getElementById('p1-name-input').value.trim();
             const p2Input = document.getElementById('p2-name-input').value.trim();
+            
             p1Name = p1Input !== "" ? p1Input : "שחקן 1";
-            p2Name = p2Input !== "" ? p2Input : "שחקן 2";
+            p2Name = gameMode === 'PVE' ? "מחשב מתקדם" : (p2Input !== "" ? p2Input : "שחקן 2");
+            
             document.getElementById('p1-name-display').innerText = p1Name;
             document.getElementById('p2-name-display').innerText = p2Name;
 
