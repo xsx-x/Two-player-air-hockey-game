@@ -102,6 +102,22 @@
         .overlay-screen h1 { font-size: 64px; margin: 0 0 20px 0; color: #f1c40f; text-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         .overlay-screen p { font-size: 22px; color: #cbd5e1; margin-bottom: 40px; line-height: 1.6; }
         
+        .controls-info {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+            padding: 15px 30px;
+            margin-bottom: 30px;
+            display: inline-block;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: right;
+        }
+        .controls-info p {
+            margin: 5px 0 !important;
+            font-size: 20px !important;
+            color: #fff !important;
+            line-height: 1.2 !important;
+        }
+
         .btn {
             background: linear-gradient(45deg, #f1c40f, #e67e22);
             color: #000; font-family: inherit; font-size: 24px; font-weight: 900;
@@ -171,7 +187,13 @@
                 <line x1="15" y1="9" x2="15.01" y2="9"></line>
             </svg>
             <h1>סופר-קלאסיקו 3D</h1>
-            <p>התחרו ראש בראש בקרב אינטנסיבי של 90 שניות!<br>השתמשו בפיזיקה, צברו תאוצה והפציצו את השער של היריב.</p>
+            <p style="margin-bottom: 20px;">התחרו ראש בראש בקרב אינטנסיבי של 90 שניות!<br>השתמשו בפיזיקה, צברו תאוצה והפציצו את השער של היריב.</p>
+            
+            <div class="controls-info">
+                <p><span style="color:#00d2ff; font-weight:bold;">שחקן 1 (ימין):</span> תזוזה עם <strong>מקשי החצים</strong></p>
+                <p><span style="color:#ff3366; font-weight:bold;">שחקן 2 (שמאל):</span> תזוזה עם המקשים <strong>W, A, S, D</strong></p>
+            </div>
+
             <div class="name-inputs">
                 <input type="text" id="p2-name-input" placeholder="שחקן 2 (שמאל)" maxlength="12">
                 <input type="text" id="p1-name-input" placeholder="שחקן 1 (ימין)" maxlength="12">
