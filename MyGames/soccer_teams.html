@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>כדורגל קבוצות 5 נגד 5</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap');
+
+        body {
+            margin: 0; overflow: hidden; background-color: #1a252c;
+            font-family: 'Heebo', sans-serif; touch-action: none; color: white;
+        }
+
+        /* אנימציות ועיצוב UI */
+        @keyframes popIn {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            70% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 10px rgba(241, 196, 15, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(241, 196, 15, 0.9); }
+            100% { box-shadow: 0 0 10px rgba(241, 196, 15, 0.5); }
+        }
+        @keyframes rotateRing {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; z-index: 10;
+        }
+
+        #top-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 40px; background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0));
+        }
+
+        .score-box {
+            display: flex; align-items: center; background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px); padding: 10px 30px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        .score-val { font-size: 48px; font-weight: 900; margin: 0 20px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .p1-color { color: #00d2ff; } 
+        .p2-color { color: #ff3366; } 
+        .player-label { font-size: 16px; font-weight: bold; opacity: 0.8; }
+
+        #timer-box {
+            font-size: 42px; font-weight: 900; color: #fff;
+            background: rgba(0, 0, 0, 0.4); padding: 10px 30px; border-radius: 15px;
+            border: 2px solid #f1c40f; box-shadow: 0 0 20px rgba(241, 196, 15, 0.3);
+        }
+
+        #goal-message {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 120px; font-weight: 900; color: #fff; text-transform: uppercase;
+            text-shadow: 0 0 20px #f1c40f, 0 0 40px #f1c40f, 0 0 80px #e67e22, 5px 5px 0px #000;
+            opacity: 0; pointer-events: none;
+        }
+        .show-goal { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        .overlay-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 30, 0.85); backdrop-filter: blur(15px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: auto; z-index: 20; transition: opacity 0.5s;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 30px; padding: 40px; text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5); max-width: 700px;
+        }
+        .overlay-screen h1 { font-size: 56px; margin: 0 0 15px 0; color: #f1c40f; text-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .overlay-screen p { font-size: 20px; color: #cbd5e1; margin-bottom: 25px; line-height: 1.5; }
+        
+        .controls-info {
+            background: rgba(0, 0, 0, 0.4); border-radius: 15px; padding: 15px 30px;
+            margin-bottom: 25px; display: inline-block; border: 1px solid rgba(255, 255, 255, 0.1); text-align: right;
+        }
+        .controls-info p { margin: 5px 0 !important; font-size: 18px !important; color: #fff !important; }
+
+        .btn {
+            background: linear-gradient(45deg, #f1c40f, #e67e22); color: #000; font-family: inherit;
+            font-size: 24px; font-weight: 900; padding: 15px 40px; border: none; border-radius: 50px;
+            cursor: pointer; transition: all 0.2s; margin: 10px;
+        }
+        .btn:hover { transform: scale(1.05) translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .btn:active { transform: scale(0.95); }
+        
+        .hidden { opacity: 0; pointer-events: none; }
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        #instructions-bottom {
+            position: absolute; bottom: 20px; width: 100%; text-align: center;
+            color: rgba(255,255,255,0.7); font-weight: bold; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="top-bar">
+            <div class="score-box" style="border-right: 5px solid #ff3366;">
+                <div class="player-label p2-color">שחקן 2 (אדום)<br><small>W,A,S,D</small></div>
+                <div id="score2" class="score-val p2-color">0</div>
+            </div>
+            
+            <div id="timer-box">02:00</div>
+            
+            <div class="score-box" style="border-left: 5px solid #00d2ff;">
+                <div id="score1" class="score-val p1-color">0</div>
+                <div class="player-label p1-color">שחקן 1 (כחול)<br><small>חצים</small></div>
+            </div>
+        </div>
+        <div id="goal-message">שער!!!</div>
+        <div id="instructions-bottom">השחקן הקרוב ביותר לכדור מקבל את השליטה אוטומטית (מסומן בצהוב)!</div>
+    </div>
+
+    <!-- מסך פתיחה -->
+    <div id="start-screen" class="overlay-screen">
+        <div class="glass-panel">
+            <h1>כדורגל 5x5</h1>
+            <p>שלטו בקבוצה שלמה! המחשב יעביר לכם אוטומטית את השליטה לשחקן שהכי קרוב לכדור.<br>שאר הקבוצה שלכם (כולל השוער) תעזור בהגנה באופן אוטומטי.</p>
+            
+            <div class="controls-info">
+                <p><span style="color:#00d2ff; font-weight:bold;">שחקן 1 (קבוצה כחולה):</span> הגנה על ימין, תזוזה עם <strong>החצים</strong></p>
+                <p><span style="color:#ff3366; font-weight:bold;">שחקן 2 (קבוצה אדומה):</span> הגנה על שמאל, תזוזה עם <strong>W, A, S, D</strong></p>
+            </div>
+
+            <button class="btn" onclick="startGame()">שריקת פתיחה!</button>
+        </div>
+    </div>
+
+    <!-- מסך סיום -->
+    <div id="game-over-screen" class="overlay-screen hidden">
+        <div class="glass-panel">
+            <h1 id="winner-title">משחק נגמר!</h1>
+            <p id="winner-text" style="font-size: 32px; font-weight: bold; margin-bottom: 30px;">...</p>
+            <button class="btn" onclick="startGame()">שחק שוב</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let gameState = 'START';
+        let width, height;
+        let score1 = 0, score2 = 0;
+        let timeLeft = 120; // 2 דקות
+        let lastTimestamp = 0;
+
+        // נתוני קבוצות
+        let team1 = []; // קבוצה כחולה (שחקן 1 - ימין)
+        let team2 = []; // קבוצה אדומה (שחקן 2 - שמאל)
+        let activePlayer1 = null;
+        let activePlayer2 = null;
+
+        const keys = {};
+
+        // אובייקטים ומידות
+        const ball = { x: 0, y: 0, vx: 0, vy: 0, radius: 12, mass: 1, color: '#ffffff', bounce: 0.8 };
+        const PLAYER_RADIUS = 20;
+        const PLAYER_MASS = 5;
+        const FIELD_FRICTION = 0.95;
+        const BALL_FRICTION = 0.98;
+
+        // יצירת מבנה קבוצה (טקטיקה)
+        function createTeams() {
+            team1 = [];
+            team2 = [];
+            
+            // המבנה: {xRatio, yRatio, isGK} - המיקום היחסי שלהם במגרש כמערך בסיסי
+            // קבוצה 1 (מגינה על השער הימני)
+            const formation1 = [
+                { rx: 0.9, ry: 0.5, isGK: true },   // שוער
+                { rx: 0.75, ry: 0.3, isGK: false }, // מגן עליון
+                { rx: 0.75, ry: 0.7, isGK: false }, // מגן תחתון
+                { rx: 0.6, ry: 0.4, isGK: false },  // חלוץ עליון
+                { rx: 0.6, ry: 0.6, isGK: false }   // חלוץ תחתון
+            ];
+
+            // קבוצה 2 (מגינה על השער השמאלי)
+            const formation2 = [
+                { rx: 0.1, ry: 0.5, isGK: true },   // שוער
+                { rx: 0.25, ry: 0.3, isGK: false }, // מגן עליון
+                { rx: 0.25, ry: 0.7, isGK: false }, // מגן תחתון
+                { rx: 0.4, ry: 0.4, isGK: false },  // חלוץ עליון
+                { rx: 0.4, ry: 0.6, isGK: false }   // חלוץ תחתון
+            ];
+
+            const addPlayer = (team, form, teamNum) => {
+                form.forEach(pos => {
+                    team.push({
+                        x: width * pos.rx,
+                        y: height * pos.ry,
+                        vx: 0, vy: 0,
+                        radius: PLAYER_RADIUS,
+                        mass: pos.isGK ? PLAYER_MASS * 1.5 : PLAYER_MASS, // שוער קצת יותר כבד
+                        colorLight: teamNum === 1 ? '#00d2ff' : '#ff3366',
+                        colorDark: teamNum === 1 ? '#005c8a' : '#8a002b',
+                        speed: pos.isGK ? 0.8 : 1.2,
+                        maxSpeed: 8,
+                        baseRx: pos.rx, // שמירת מיקום בסיס טקטי
+                        baseRy: pos.ry,
+                        isGK: pos.isGK
+                    });
+                });
+            };
+
+            addPlayer(team1, formation1, 1);
+            addPlayer(team2, formation2, 2);
+        }
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            if (gameState === 'START' || gameState === 'OVER') {
+                createTeams();
+                resetPositions();
+            }
+        }
+
+        window.addEventListener('resize', resize);
+        window.addEventListener('keydown', e => { keys[e.code] = true; });
+        window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+        function resetPositions() {
+            ball.x = width / 2; ball.y = height / 2;
+            ball.vx = 0; ball.vy = 0;
+            
+            // החזרת השחקנים לעמדות הבסיס שלהם
+            team1.forEach(p => { p.x = width * p.baseRx; p.y = height * p.baseRy; p.vx = 0; p.vy = 0; });
+            team2.forEach(p => { p.x = width * p.baseRx; p.y = height * p.baseRy; p.vx = 0; p.vy = 0; });
+            
+            updateActivePlayers();
+        }
+
+        // --- מנוע הליבה: בחירת השחקן הפעיל ---
+        function updateActivePlayers() {
+            const findClosest = (team) => {
+                let closest = null;
+                let minDist = Infinity;
+                for (let p of team) {
+                    const dx = p.x - ball.x;
+                    const dy = p.y - ball.y;
+                    const dist = dx*dx + dy*dy; // אין צורך בשורש לשם השוואה
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closest = p;
+                    }
+                }
+                return closest;
+            };
+
+            activePlayer1 = findClosest(team1);
+            activePlayer2 = findClosest(team2);
+        }
+
+        // --- בינה מלאכותית לשחקנים הלא פעילים ---
+        function applyTeamAI(team, isDefendingLeft) {
+            team.forEach(p => {
+                if (p === activePlayer1 || p === activePlayer2) return; // השחקן הפעיל נשלט ע"י המשתמש
+
+                let targetX = width * p.baseRx;
+                let targetY = height * p.baseRy;
+
+                if (p.isGK) {
+                    // שוער עוקב אחרי ציר ה-Y של הכדור, אבל נשאר קרוב לשער
+                    targetY = ball.y;
+                    const goalTop = height / 2 - 100;
+                    const goalBottom = height / 2 + 100;
+                    if (targetY < goalTop + 20) targetY = goalTop + 20;
+                    if (targetY > goalBottom - 20) targetY = goalBottom - 20;
+                } else {
+                    // שחקני שדה זזים קדימה ואחורה בהתאם למיקום הכדור כדי לתמוך בהתקפה/הגנה
+                    const shiftX = (ball.x - width/2) * 0.3; 
+                    targetX += shiftX;
+                }
+
+                // תנועה חלקה לעבר המטרה
+                const dx = targetX - p.x;
+                const dy = targetY - p.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist > 10) {
+                    const aiAccel = p.speed * 0.4; // הבוטים זזים לאט יותר מהשחקן כדי לא להשתלט על המשחק
+                    p.vx += (dx / dist) * aiAccel;
+                    p.vy += (dy / dist) * aiAccel;
+                }
+            });
+        }
+
+        function handleInput() {
+            if (gameState !== 'PLAYING') return;
+
+            updateActivePlayers();
+
+            // שחקן 1 (ימין - חצים) - שולט על השחקן הכי קרוב
+            if (keys['ArrowUp']) activePlayer1.vy -= activePlayer1.speed;
+            if (keys['ArrowDown']) activePlayer1.vy += activePlayer1.speed;
+            if (keys['ArrowLeft']) activePlayer1.vx -= activePlayer1.speed;
+            if (keys['ArrowRight']) activePlayer1.vx += activePlayer1.speed;
+
+            // שחקן 2 (שמאל - WASD)
+            if (keys['KeyW']) activePlayer2.vy -= activePlayer2.speed;
+            if (keys['KeyS']) activePlayer2.vy += activePlayer2.speed;
+            if (keys['KeyA']) activePlayer2.vx -= activePlayer2.speed;
+            if (keys['KeyD']) activePlayer2.vx += activePlayer2.speed;
+
+            // הגבלת מהירות לכל השחקנים
+            const allPlayers = [...team1, ...team2];
+            allPlayers.forEach(obj => {
+                const speed = Math.sqrt(obj.vx * obj.vx + obj.vy * obj.vy);
+                if (speed > obj.maxSpeed) {
+                    obj.vx = (obj.vx / speed) * obj.maxSpeed;
+                    obj.vy = (obj.vy / speed) * obj.maxSpeed;
+                }
+            });
+        }
+
+        // פתרון התנגשויות עגולות
+        function resolveCollision(obj1, obj2, isBall = false) {
+            const dx = obj2.x - obj1.x; 
+            const dy = obj2.y - obj1.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const minDist = obj1.radius + obj2.radius;
+
+            if (distance < minDist) {
+                const overlap = (minDist - distance) / 2;
+                const nx = dx / distance; 
+                const ny = dy / distance;
+
+                obj1.x -= nx * overlap; obj1.y -= ny * overlap;
+                obj2.x += nx * overlap; obj2.y += ny * overlap;
+
+                const kx = obj1.vx - obj2.vx; 
+                const ky = obj1.vy - obj2.vy;
+                const p = 2 * (nx * kx + ny * ky) / (obj1.mass + obj2.mass);
+
+                // אם זה התנגשות עם הכדור, תן לו בעיטה קטנה כדי שאפשר יהיה לכדרר
+                let kickForce = isBall ? 1.5 : 0.8; 
+
+                obj1.vx -= p * obj2.mass * nx * kickForce;
+                obj1.vy -= p * obj2.mass * ny * kickForce;
+                obj2.vx += p * obj1.mass * nx * kickForce;
+                obj2.vy += p * obj1.mass * ny * kickForce;
+            }
+        }
+
+        function updatePhysics() {
+            const allPlayers = [...team1, ...team2];
+
+            // עדכון AI
+            applyTeamAI(team1, false);
+            applyTeamAI(team2, true);
+
+            // חיכוך ותנועה
+            allPlayers.forEach(p => {
+                p.vx *= FIELD_FRICTION;
+                p.vy *= FIELD_FRICTION;
+                p.x += p.vx;
+                p.y += p.vy;
+            });
+
+            ball.vx *= BALL_FRICTION;
+            ball.vy *= BALL_FRICTION;
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+
+            // התנגשויות (שחקן נגד שחקן)
+            for (let i = 0; i < allPlayers.length; i++) {
+                for (let j = i + 1; j < allPlayers.length; j++) {
+                    resolveCollision(allPlayers[i], allPlayers[j]);
+                }
+            }
+
+            // התנגשויות (שחקנים נגד כדור)
+            allPlayers.forEach(p => {
+                resolveCollision(p, ball, true);
+            });
+
+            // גבולות שער וקירות
+            const goalTop = height / 2 - 140;
+            const goalBottom = height / 2 + 140;
+
+            const checkWallCollision = (obj, isBall) => {
+                if (obj.y - obj.radius < 0) { obj.y = obj.radius; obj.vy *= -obj.bounce || -0.5; }
+                if (obj.y + obj.radius > height) { obj.y = height - obj.radius; obj.vy *= -obj.bounce || -0.5; }
+
+                const inGoalY = obj.y > goalTop && obj.y < goalBottom;
+                
+                if (obj.x - obj.radius < 0) {
+                    if (isBall && inGoalY && gameState === 'PLAYING') { scoreGoal(1); } // שער לשחקן 1 (כדור בשמאל)
+                    else { obj.x = obj.radius; obj.vx *= -obj.bounce || -0.5; }
+                }
+                if (obj.x + obj.radius > width) {
+                    if (isBall && inGoalY && gameState === 'PLAYING') { scoreGoal(2); } // שער לשחקן 2 (כדור בימין)
+                    else { obj.x = width - obj.radius; obj.vx *= -obj.bounce || -0.5; }
+                }
+            };
+
+            allPlayers.forEach(p => checkWallCollision(p, false));
+            checkWallCollision(ball, true);
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            score1 = 0; score2 = 0;
+            document.getElementById('score1').innerText = score1;
+            document.getElementById('score2').innerText = score2;
+            timeLeft = 120;
+            
+            createTeams();
+            resetPositions();
+            gameState = 'PLAYING';
+        }
+
+        function scoreGoal(playerNum) {
+            gameState = 'GOAL';
+            if (playerNum === 1) { score1++; document.getElementById('score1').innerText = score1; } 
+            else { score2++; document.getElementById('score2').innerText = score2; }
+
+            const msg = document.getElementById('goal-message');
+            msg.classList.add('show-goal');
+
+            setTimeout(() => {
+                msg.classList.remove('show-goal');
+                if(timeLeft > 0) {
+                    resetPositions();
+                    gameState = 'PLAYING';
+                } else {
+                    endGame();
+                }
+            }, 2500);
+        }
+
+        function endGame() {
+            gameState = 'OVER';
+            const screen = document.getElementById('game-over-screen');
+            const winnerText = document.getElementById('winner-text');
+            
+            if (score1 > score2) {
+                winnerText.innerHTML = '<span style="color:#00d2ff;">קבוצה כחולה מנצחת!</span>';
+            } else if (score2 > score1) {
+                winnerText.innerHTML = '<span style="color:#ff3366;">קבוצה אדומה מנצחת!</span>';
+            } else {
+                winnerText.innerHTML = '<span style="color:#f1c40f;">תיקו! איזה מתח!</span>';
+            }
+            screen.classList.remove('hidden');
+        }
+
+        // --- ציור המגרש והשחקנים ---
+        function drawField() {
+            // דשא (פסים כהים ובהירים)
+            ctx.fillStyle = '#1e3d2f';
+            ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = '#183326';
+            for(let i=0; i<width; i+=80) {
+                if((i/80)%2 === 0) ctx.fillRect(i, 0, 80, height);
+            }
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 4;
+
+            // קו אמצע ועיגול
+            ctx.beginPath(); ctx.moveTo(width/2, 0); ctx.lineTo(width/2, height); ctx.stroke();
+            ctx.beginPath(); ctx.arc(width/2, height/2, 100, 0, Math.PI*2); ctx.stroke();
+            
+            const goalTop = height / 2 - 140;
+            const goalHeight = 280;
+            
+            // רחבות ושערים
+            ctx.strokeRect(-10, goalTop - 80, 200, goalHeight + 160); // רחבת 16 שמאל
+            ctx.strokeRect(width - 190, goalTop - 80, 200, goalHeight + 160); // רחבת 16 ימין
+            
+            // שערים פנימיים (רשת)
+            ctx.fillStyle = 'rgba(255, 51, 102, 0.2)'; // שער שמאל (קבוצה אדומה מגנה)
+            ctx.fillRect(0, goalTop, 40, goalHeight);
+            ctx.fillStyle = 'rgba(0, 210, 255, 0.2)'; // שער ימין (קבוצה כחולה מגנה)
+            ctx.fillRect(width - 40, goalTop, 40, goalHeight);
+        }
+
+        function drawPlayer(obj, isActive) {
+            // טבעת סימון לשחקן פעיל (מי שנשלט כרגע)
+            if (isActive) {
+                ctx.beginPath();
+                ctx.arc(obj.x, obj.y, obj.radius + 8, 0, Math.PI * 2);
+                ctx.strokeStyle = '#f1c40f';
+                ctx.lineWidth = 4;
+                ctx.shadowColor = '#f1c40f';
+                ctx.shadowBlur = 10;
+                ctx.stroke();
+                ctx.shadowBlur = 0; // איפוס
+            }
+
+            // צל
+            ctx.beginPath(); ctx.arc(obj.x + 5, obj.y + 5, obj.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill(); 
+
+            // גוף השחקן (תלת מימד עדין)
+            let grad = ctx.createRadialGradient(obj.x - obj.radius/3, obj.y - obj.radius/3, obj.radius/5, obj.x, obj.y, obj.radius);
+            grad.addColorStop(0, obj.colorLight);
+            grad.addColorStop(1, obj.colorDark);
+
+            ctx.beginPath(); ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+            
+            // סימן מיוחד לשוער
+            if (obj.isGK) {
+                ctx.beginPath(); ctx.arc(obj.x, obj.y, obj.radius/2, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fill();
+            }
+        }
+
+        function drawBall() {
+            ctx.beginPath(); ctx.arc(ball.x + 3, ball.y + 3, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff'; ctx.fill();
+            
+            // פטרן פשוט לכדור
+            ctx.fillStyle = '#222';
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius/2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(ball.x-5, ball.y-4, ball.radius/3, 0, Math.PI*2); ctx.fill();
+        }
+
+        function gameLoop(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const dt = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+
+            if (gameState === 'PLAYING') {
+                timeLeft -= dt;
+                if (timeLeft <= 0) { timeLeft = 0; if(gameState !== 'GOAL') endGame(); }
+                document.getElementById('timer-box').innerText = formatTime(timeLeft);
+            }
+
+            handleInput(timestamp);
+            updatePhysics();
+
+            ctx.clearRect(0, 0, width, height);
+            drawField();
+            
+            team1.forEach(p => drawPlayer(p, p === activePlayer1));
+            team2.forEach(p => drawPlayer(p, p === activePlayer2));
+            drawBall();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        resize();
+        requestAnimationFrame(gameLoop);
+
+    </script>
+</body>
+</html>
